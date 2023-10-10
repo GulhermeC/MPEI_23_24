@@ -1,0 +1,3 @@
+nome | caracterizacao | espaço amostragem | funçao massa prob. | perimetros + observações
+
+Bernoulli | resultado de uma experiencia | {0,1} | p(x=0) = 1-p / p(x=1) = p | p
