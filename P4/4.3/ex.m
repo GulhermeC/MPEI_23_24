@@ -104,7 +104,7 @@ disp(['Tempo total para calcular distâncias (etime): ' num2str(total_etime) ' s
 fprintf('\n =============================== Ex2 ================================== \n');
 
 % Carrega o ficheiro dos dados dos filmes
-udata = load('u.data'); % Certifique-se de que 'u.data' está no seu diretório atual
+udata = load('u.data'); 
 
 % Identificar IDs únicos dos usuários
 unique_users = unique(udata(:,1));
@@ -135,6 +135,62 @@ paresSimilares = encontrarParesSimilares(J, users, threshold);
 disp('Pares de usuários com distância de Jaccard inferior ao limiar:');
 disp(paresSimilares);
 
+
+% =============================== Ex3 ================================== %
+fprintf('\n =============================== Ex3 ================================== \n');
+
+% Carrega o ficheiro dos dados dos filmes
+udata = load('u.data'); 
+
+u= udata(1:end,1:2); clear udata;
+
+% Testando as funções
+Set = criarConjuntosFilmes(u);
+J = calcularDistanciasJaccard(Set);
+
+% Limiar de similaridade
+threshold = 0.4; 
+users = unique(u(:,1));
+paresSimilares = encontrarParesSimilares(J, users, threshold);
+
+% Exibir os resultados
+disp('Pares de usuários com distância de Jaccard inferior ao limiar:');
+disp(paresSimilares);
+
+% =============================== Ex4 ================================== %
+fprintf('\n =============================== Ex4 ================================== \n');
+
+% Carrega o ficheiro dos dados dos filmes
+udata = load('u.data');
+
+% Identificar os IDs únicos dos usuários
+unique_users = unique(udata(:,1));
+
+% Extrair os dados dos primeiros 50 usuários
+first_50_users = unique_users(1:50);
+u_50 = udata(ismember(udata(:,1), first_50_users), :);
+
+% Extrair os dados dos primeiros 100 usuários
+first_100_users = unique_users(1:100);
+u_100 = udata(ismember(udata(:,1), first_100_users), :);
+
+% Extrair os dados dos primeiros 200 usuários
+first_200_users = unique_users(1:200);
+u_200 = udata(ismember(udata(:,1), first_200_users), :);
+
+Set50 = criarConjuntosFilmes(u_50); % u_50 representa os dados dos primeiros 50 usuários
+Set100 = criarConjuntosFilmes(u_100);
+Set200 = criarConjuntosFilmes(u_200);
+J_50 = calcularDistanciasJaccardMinHash(Set50, 50);  % k = 50
+J_100 = calcularDistanciasJaccardMinHash(Set100, 100); % k = 100
+J_200 = calcularDistanciasJaccardMinHash(Set200, 200); % k = 200
+
+disp('Distâncias de Jaccard para k = 50:');
+disp(J_50);
+disp('Distâncias de Jaccard para k = 100:');
+disp(J_100);
+disp('Distâncias de Jaccard para k = 200:');
+disp(J_200);
 
 % ============================ Funções Ex2 =============================== %
 function Set = criarConjuntosFilmes(u)
@@ -186,3 +242,35 @@ function paresSimilares = encontrarParesSimilares(J, users, threshold)
     end
 end
 
+% ============================ Funções Ex4 =============================== %
+
+function minHashSignatures = calcularMinHash(Set, k)
+    num_usuarios = length(Set);
+    max_movie_id = max(cellfun(@max, Set));
+    minHashSignatures = inf(num_usuarios, k);
+
+    for i = 1:k
+        hash_function = @(x) mod(randi(1000000) * x + randi(1000000), max_movie_id);
+        for j = 1:num_usuarios
+            hashed_values = arrayfun(hash_function, Set{j});
+            if ~isempty(hashed_values)
+                minHashSignatures(j, i) = min(hashed_values);
+            end
+        end
+    end
+end
+
+function J = calcularDistanciasJaccardMinHash(Set, k)
+    % Calcular assinaturas MinHash
+    minHashSignatures = calcularMinHash(Set, k);
+
+    % Calcular a distância de Jaccard aproximada
+    num_usuarios = size(minHashSignatures, 1);
+    J = zeros(num_usuarios);
+    for i = 1:num_usuarios
+        for j = i+1:num_usuarios
+            similarity = sum(minHashSignatures(i, :) == minHashSignatures(j, :)) / k;
+            J(i, j) = 1 - similarity;
+        end
+    end
+end
