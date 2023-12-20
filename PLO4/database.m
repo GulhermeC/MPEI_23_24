@@ -1,3 +1,10 @@
+% Read the first 1000 lines of the CSV file
+%opts = detectImportOptions('movies.csv', 'Delimiter', ',', 'Range', '1:1000');
+%moviesTable = readtable('movies.csv', opts);
+
+% Convert the table to a cell array
+%movies = table2cell(moviesTable);
+% Uncomment the lines above and comment this one for faster testing
 movies= readcell('movies.csv','Delimiter',',');
 
 % Initialize an empty cell array to store genres
@@ -65,16 +72,14 @@ end
 
 shingle_size=3;
 K = 150;  % Number of hash functions
-MinHashSig = inf(length(movies), K);  % Initialize MinHash signatures
-
+MinHashSig = inf(length(movies),K);
 for i = 1:length(movies)
-    conjunto = lower(movies{i,1});
+    set = lower(movies{i,1});
     shingles = {};
-    for j= 1 : length(conjunto) - shingle_size+1  % Criacao dos shingles para cada filme
-        shingle = conjunto(j:j+shingle_size-1);
+    for j= 1 : length(set) - shingle_size+1  % Creation of shingles for each movie
+        shingle = set(j:j+shingle_size-1);
         shingles{j} = shingle;
     end
-   
     
     for j = 1:length(shingles)
         chave = char(shingles(j));
@@ -83,9 +88,48 @@ for i = 1:length(movies)
             chave = [chave num2str(kk)];
             hash(kk) = DJB31MA(chave,127);
         end
-        MinHashSig(i,:) = min([MinHashSig(i,:);hash]);  % Valor minimo da hash para este shingle
+        MinHashSig(i,:) = min([MinHashSig(i,:);hash]);  % Minimum hash value for this shingle
     end
 end
 
+% =================== 5 ===================
 
-save 'database' 'movies' 'allGenres' 'genreCounts' 'genreYearCounts' 'MinHashSig'
+shingle_size = 3;
+K = 150;
+MinHashSigGen = inf(length(movies), K);
+
+for i = 1:length(movies)
+
+    % Initialize an empty string for genres
+    allGenres2 = '';
+    
+    % Concatenate the genres for each movie
+    for j = 3:size(movies, 2)
+        if ~isempty(movies{i, j})
+            allGenres2 = [allGenres2, ' ', movies{i, j}];
+        end
+    end
+
+    % Convert to lowercase
+    genres = lower(allGenres2);
+    shingles = {};
+
+    % Create shingles from the concatenated genres
+    for j = 1:length(genres) - shingle_size + 1
+        shingle = genres(j:j + shingle_size - 1);
+        shingles{j} = shingle;
+    end
+
+    % Process each shingle as before
+    for j = 1:length(shingles)
+        chave = char(shingles(j));
+        hash = zeros(1, K);
+        for kk = 1:K
+            chave = [chave num2str(kk)];
+            hash(kk) = DJB31MA(chave, 127);
+        end
+        MinHashSigGen(i, :) = min([MinHashSigGen(i, :); hash]);  % Minimum hash value for this shingle
+    end
+end
+
+save 'database' 'movies' 'allGenres' 'genreCounts' 'genreYearCounts' 'MinHashSig' 'MinHashSigGen'

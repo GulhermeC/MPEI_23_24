@@ -1,13 +1,13 @@
 clc;
 clear all;
 
-load database; 
-% allGenres genreCounts genreYearCounts titles MinHashSig
+load database;
+% movies allGenres genreCounts genreYearCounts MinHashSig MinHashSigGen
 
 op = 0;
-menu(op, allGenres, genreCounts, genreYearCounts, titles, MinHashSig);
+menu(op, movies, allGenres, genreCounts, genreYearCounts, MinHashSig, MinHashSigGen);
 
-function menu(op, genres, genreCounts, genreYearCounts, titles, MinHashSig)
+function menu(op, movies, allGenres, genreCounts, genreYearCounts, MinHashSig, MinHashSigGen)
     while(isempty(op) | op < 6)
         fprintf('\n1 - Display available genres\n2 - Number of movies of a genre\n3 - Number of a genre on a given year\n4 - Search movie titles\n5 - Search movies based on genres\n6 - Exit\nSelect an option: ')
         op = str2num(input('', 's'));
@@ -19,15 +19,15 @@ function menu(op, genres, genreCounts, genreYearCounts, titles, MinHashSig)
 
         switch op
             case 1
-                dispGenres(genres)
+                dispGenres(allGenres)
             case 2
                 moviesGen(genreCounts)
             case 3
                 moviesGenYr(genreYearCounts)
             case 4
-                searchMovie(titles, MinHashSig)
+                searchMovie(movies, MinHashSig)
             case 5
-                searchMovieGen()
+                searchMovieGen(movies, MinHashSigGen, allGenres)
             case 6
                 clc
                 break;
@@ -164,53 +164,112 @@ function moviesGenYr(genreYearCounts)
 end
 
 % OP 4
-function searchMovie(titles, MinHashSig)
-    fprintf('Insert a string: ');
-    inputString = lower(input('', 's'));
-    K = size(MinHashSig, 2);  % Number of hash functions
-    
-    shingle_size = 3;
-    shingles = {};
-    for j = 1:length(inputString) - shingle_size+1
-        shingle = inputString(j:j+shingle_size-1);
-        shingles{j} = shingle;
+function searchMovie(movies, MinHashSig)
+    str = lower(input('\nWrite a String: ', 's'));
+    shingle_size = 3;  % Use the same number of shingles as in the database
+    K = size(MinHashSig, 2);  % Use the same K as used in the database for genre shingles
+
+   % Cell array with shingles from the input string
+    shinglesAns = {};
+    for i = 1:length(str) - shingle_size+1
+        shingle = str(i:i+shingle_size-1);
+        shinglesAns{i} = shingle;
     end
 
-    inputMinHashSig = inf(1, K);
-    % Calculate MinHash signature
-    for j = 1:length(shingles)
-        key = char(shingles{j});
-        hash = zeros(1, K);
+    % Fazer a MinHash dos shingles da string introduzida
+    MinHashString = inf(1,K);
+    for j = 1:length(shinglesAns)
+        chave = char(shinglesAns{j});
+        hash = zeros(1,K);
         for kk = 1:K
-            combinedKey = [key num2str(kk)];
-            hash(kk) = DJB31MA(combinedKey, 127);
+            chave = [chave num2str(kk)];
+            hash(kk) = DJB31MA(chave, 127);
         end
-        inputMinHashSig(1,:) = min([inputMinHashSig(1,:); hash]);
+        MinHashString(1,:) = min([MinHashString(1,:); hash]);
     end
 
-    % Calculate Jaccard similarities
-    distJ  = zeros(1, length(titles));
-    
+    % Jaccard distance between the input string and each movie
+    distJ = zeros(1, size(movies,1)); % Array to store distances
     h = waitbar(0,'Calculating');
-    for i = 1:length(titles)
+    for i=1:size(movies, 1)
         waitbar(i/K, h);
-        distJ(i) = sum(MinHashSig(i,:) ~= inputMinHashSig)/K;
-        
+        distJ(i) = sum(MinHashSig(i,:) ~= MinHashString)/K;
+        distJ(i) = 1 - distJ(i);
     end
     delete(h);
 
-    
-
     for i = 1:5
-        [val, pos] = min(distJ);
-        fprintf('%s   (%f)\n', titles{pos}, val);
-        distJ(pos) = 1;
+        [val, pos] = max(distJ); % Calculate the maximum value (highest similarity)
+        fprintf('%s   (%f)\n', movies{pos, 1}, val);
+        distJ(pos) = 0;   % Exclude this movie by setting its distance to 1
     end
     
+    
+    fprintf(2, 'Press any key to continue. ');
+    pause;clc;  % Keep the information available until the user presses any key 
 end
 
 % OP 5
-function searchMovieGen()
-    fprintf("Select one or more genres (separated by ','): ");
-    gen = input('', 's');
+function searchMovieGen(movies, MinHashSig, allGenres)
+    isValidGenre = false;
+    while ~isValidGenre
+        str = input('\nEnter Genre(s): ', 's');
+        inputGenres = strsplit(str, ','); % Splitting genres by comma
+        inputGenres = strtrim(inputGenres); % Trimming whitespace
+        inputGenres = lower(inputGenres);
+
+        lowerAllGenres = lower(allGenres);
+
+        % Checking if each input genre is in allGenres
+        isValidGenre = all(ismember(inputGenres, lowerAllGenres));
+
+        if ~isValidGenre
+            fprintf('Invalid genre(s). Please enter existing genre(s).\n');
+            fprintf('You entered: %s\n', strjoin(inputGenres, ', ')); % Debug print
+        end
+    end
+    
+    str = lower(str);
+    shingle_size = 3;  % Use the same number of shingles as in the database
+    K = size(MinHashSig, 2);  % Use the same K as used in the database for genre shingles
+
+    % Cell array with shingles from the input string
+    shinglesAns = {};
+    for i = 1:length(str) - shingle_size + 1
+        shingle = str(i:i + shingle_size - 1);
+        shinglesAns{i} = shingle;
+    end
+
+    % Compute the MinHash of the input string's shingles
+    MinHashString = inf(1, K);
+    for j = 1:length(shinglesAns)
+        chave = char(shinglesAns{j});
+        hash = zeros(1, K);
+        for kk = 1:K
+            chave = [chave num2str(kk)];
+            hash(kk) = DJB31MA(chave, 127);
+        end
+        MinHashString(1, :) = min([MinHashString(1, :); hash]);
+    end
+
+    % Jaccard distance between the input string and each movie
+    distJ = zeros(1, size(movies, 1));  % Array to store distances
+    h = waitbar(0, 'Calculating');
+    for i = 1:size(movies, 1)
+        waitbar(i / K, h);
+        distJ(i) = sum(MinHashSig(i, :) ~= MinHashString) / K;
+        distJ(i) = 1 - distJ(i);
+    end
+    delete(h);
+
+    % Find and display the top 5 matches
+    for i = 1:5
+        [val, pos] = max(distJ);  % Calculate the maximum value (highest similarity)
+        fprintf('%s   (%f)\n', movies{pos, 1}, val);
+        distJ(pos) = 0;  % Exclude this movie by setting its distance to 1
+    end
+
+    fprintf(2, 'Press any key to continue. ');
+    pause; clc;  % Keep the information available until the user presses any key
 end
+
