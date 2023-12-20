@@ -16,6 +16,17 @@ for n = 1:Nu % Para cada utilizador
     Set{n} = [Set{n} u(ind,2)];
 end
 
+for n = 1:Nu  % Loop over each user
+    fprintf('User %d:\n', users(n));  % Print user ID
+    userMovies = Set{n};  % Get the list of movies for this user
+    fprintf('Movies: ');
+    for m = 1:length(userMovies)
+        fprintf('%d ', userMovies(m));  % Print each movie ID
+    end
+    fprintf('\n\n');  % New line for readability
+end
+
+
 K = 100;  % Número de funções de dispersão
 MinHashValue = inf(Nu,K);
 for i = 1:Nu

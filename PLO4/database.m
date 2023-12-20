@@ -1,8 +1,5 @@
 movies= readcell('movies.csv','Delimiter',',');
 
-
-title = unique(movies(:,1));
-
 % Initialize an empty cell array to store genres
 allGenres = {};
 
@@ -16,7 +13,7 @@ genreYearCounts = containers.Map('KeyType', 'char', 'ValueType', 'any');
 for i = 1:size(movies, 1)
     % Extract genres for this movie
     % Assuming genres start from column 3 till the end of the columns
-    year = char(movies{i, 2});
+    year = num2str(movies{i, 2});
     genres = movies(i, 3:end);
     
     % Remove any empty cells or NaN values
@@ -64,4 +61,31 @@ for i = 1:size(movies, 1)
 
 end
 
-save 'database' 'allGenres' 'genreCounts' 'genreYearCounts'
+% =================== 4 ===================
+
+shingle_size=3;
+K = 150;  % Number of hash functions
+MinHashSig = inf(length(movies), K);  % Initialize MinHash signatures
+
+for i = 1:length(movies)
+    conjunto = lower(movies{i,1});
+    shingles = {};
+    for j= 1 : length(conjunto) - shingle_size+1  % Criacao dos shingles para cada filme
+        shingle = conjunto(j:j+shingle_size-1);
+        shingles{j} = shingle;
+    end
+   
+    
+    for j = 1:length(shingles)
+        chave = char(shingles(j));
+        hash = zeros(1,K);
+        for kk = 1:K
+            chave = [chave num2str(kk)];
+            hash(kk) = DJB31MA(chave,127);
+        end
+        MinHashSig(i,:) = min([MinHashSig(i,:);hash]);  % Valor minimo da hash para este shingle
+    end
+end
+
+
+save 'database' 'movies' 'allGenres' 'genreCounts' 'genreYearCounts' 'MinHashSig'
